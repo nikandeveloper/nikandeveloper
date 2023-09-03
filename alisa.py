@@ -22,14 +22,15 @@ while True:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_a:
                 x_change = -3
+                    xF -= 1
             elif event.key == pygame.K_d:
                 x_change = 3
+                    xF += 1
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_a or event.key == pygame.K_d:
                 x_change = 0
     pygame.display.update()
     main.fill(whate_c)
-    xF -= 1
     main.blit(main_img0, (x, 330))
     main.blit(main_imgF, (xF, 510))
     main.blit(main_imgF, (xF + 550, 510))
