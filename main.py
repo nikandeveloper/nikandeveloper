@@ -17,6 +17,11 @@ d = 1
 player3 = ft.player3
 
 while edame:
+
+
+
+    prev_player_pos = ft.player.rect.copy()
+
     ft.draw_bg()
     ft.clock.tick(ft.FPS)
 
@@ -24,11 +29,7 @@ while edame:
         ft.player.draw()
         ft.player.update()
         ft.player.moving(moving_right, moving_left)
-    if ft.Enemy.alive:
-        ft.Enemy.draw()
-        ft.Enemy.update()
-    else:
-        ft.Enemy.dead()
+
 
 
     if ft.player.alive:
@@ -48,10 +49,32 @@ while edame:
             ft.player.update_action(0)
         elif moving_left or moving_right:
             ft.player.update_action(1)
-        if ft.player.flip:
-            ft.gun.update((ft.player.rect.x, ft.player.rect.y + 27), ft.player.flip)
-        elif not ft.player.flip:
-            ft.gun.update((ft.player.rect.x + 10, ft.player.rect.y + 27), ft.player.flip)
+
+
+
+
+
+    if ft.Enemy.alive:
+        ft.Enemy.draw()
+        ft.Enemy.update()
+    else:
+        ft.Enemy.dead()
+
+    if ft.Enemy.alive:
+        if ft.player.rect.colliderect(ft.Enemy.rect):
+            if prev_player_pos.bottom <= ft.Enemy.rect.top and ft.player.rect.bottom > ft.Enemy.rect.top:
+                ft.player.rect.bottom = ft.Enemy.rect.top
+            elif prev_player_pos.top >= ft.Enemy.rect.bottom and ft.player.rect.top < ft.Enemy.rect.bottom:
+                ft.player.rect.top = ft.Enemy.rect.bottom
+            elif prev_player_pos.right <= ft.Enemy.rect.left and ft.player.rect.right > ft.Enemy.rect.left:
+                ft.player.rect.right = ft.Enemy.rect.left
+            elif prev_player_pos.left >= ft.Enemy.rect.right and ft.player.rect.left < ft.Enemy.rect.right:
+                ft.player.rect.left = ft.Enemy.rect.right
+
+    if player3.alive:
+        player3.update((player_x, player_y), d)
+
+    ft.gun.update((ft.player.rect.x + 6, ft.player.rect.y + 27), ft.player.flip)
 
     ft.statics_group.draw(ft.Game)
     ft.statics_group.update()
@@ -64,9 +87,6 @@ while edame:
     ft.explosion_group.update()
     ft.explosion_group.draw(ft.Game)
     timerr -= 0.01
-
-    if player3.alive:
-        player3.update((player_x, player_y), d)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
