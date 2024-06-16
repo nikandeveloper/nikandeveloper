@@ -12,29 +12,39 @@ tir_thrown = False
 edame = True
 player_x = 200
 player_y = 200
+mer = False
+mel = False
 d = 1
 
 player3 = ft.player3
 
 while edame:
 
-
-
     prev_player_pos = ft.player.rect.copy()
 
     ft.draw_bg()
     ft.clock.tick(ft.FPS)
+
+    if moving_left:
+        mel = True
+        mer = False
+    elif moving_right:
+        mel = False
+        mer = True
+    else:
+        mel = False
+        mer = False
+        ft.Enemy.update_action(0)
 
     if ft.player.alive:
         ft.player.draw()
         ft.player.update()
         ft.player.moving(moving_right, moving_left)
 
-
-
     if ft.player.alive:
         if shoot:
             ft.player.shoot()
+
         elif tir and not tir_thrown and ft.player.tiran > 0:
             tirzadan = ft.tirc(ft.player.rect.centerx + (1 * ft.player.rect.size[0] * ft.player.direction),
                                ft.player.rect.top - 20,
@@ -49,14 +59,12 @@ while edame:
             ft.player.update_action(0)
         elif moving_left or moving_right:
             ft.player.update_action(1)
-
-
-
-
+            ft.Enemy.update_action(1)
 
     if ft.Enemy.alive:
         ft.Enemy.draw()
         ft.Enemy.update()
+        ft.Enemy.moving(mer, mel)
     else:
         ft.Enemy.dead()
 
