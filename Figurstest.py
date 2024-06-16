@@ -149,7 +149,6 @@ class Solider(pygame.sprite.Sprite):
             player.in_air = False
 
         self.rect.x += dx
-        print("@@@@@@@@@@@@@@@@")
         self.rect.y += dy
 
     def draw(self):
@@ -241,28 +240,6 @@ class Create_Object(pygame.sprite.Sprite):
 
     def death(self):
         self.kill()
-
-
-class Create_Object_collider(pygame.sprite.Sprite):
-    def __init__(self, position, direction, object, scale, TopLeft, BottomLeft, TopRight, BottomRight):
-        pygame.sprite.Sprite.__init__(self)
-        self.speed = 10
-        self.image = object
-        self.Top_collider = Rect(TopLeft, TopRight, TopLeft, TopRight)
-        self.Bottom_collider = Rect(BottomLeft, BottomRight, BottomLeft, BottomRight)
-        self.Right_collider = Rect(BottomRight, TopRight, BottomRight, TopRight)
-        self.Left_collider = Rect(BottomLeft, TopLeft, BottomLeft, TopLeft)
-        self.image = pygame.transform.scale(self.image,
-                                            (int(self.image.get_width() * scale), int(self.image.get_height() * scale)))
-        self.rect = self.image.get_rect()
-        self.rect.center = position
-        self.direction = direction
-
-    def draw(self, direction):
-        Game.blit(pygame.transform.flip(self.image, direction, False), self.rect)
-
-    def update(self, position, direction):
-        Game.blit(pygame.transform.flip(self.image, direction, False), position)
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -382,11 +359,9 @@ pygame.mixer.init()
 pygame.init()
 
 player = Solider(Datas.player_x, Datas.player_y, "Player", 0, 1, 5, 200, 30, 0)
-
 gun = Create_Object(player.rect.center, Datas.gun2, 1.25)
+
 player3 = Create_Object((50, 50), Datas.gun2, 2)
 Enemy = Solider(Datas.player_x + 300, 283, "Enemyred", 0, 0, 5, 5, 5, 0)
-oooobjjeeect = Create_Object_collider((100, player.rect.y), player.direction, bullet, 20, 100, 100 + bullet.get_width(),
-                                      player.rect.y, player.rect.y + bullet.get_height())
 
 
