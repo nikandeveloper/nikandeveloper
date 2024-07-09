@@ -2,6 +2,10 @@ import pygame
 import Figurstest as ft
 import Datas
 
+# Initialize pygame
+pygame.init()
+
+# Initialize variables
 shoot = False
 timerr = 100
 moving_left = False
@@ -9,23 +13,64 @@ moving_right = False
 tir = False
 gun2 = pygame.image.load("Images/Player/full pistol.png").convert_alpha()
 tir_thrown = False
-edame = True
+edame = Datas.edamee
 player_x = 200
 player_y = 200
 mer = False
 mel = False
 d = 1
 
+# Initialize player and enemy
 player3 = ft.player3
+camera = ft.Camera(ft.Width, ft.hieght)
+
+def handle_input(event):
+    global moving_left, moving_right, shoot, tir, tir_thrown, d
+    if event.type == pygame.QUIT:
+        return False
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_r:
+            if not player3.alive and ft.player.alive:
+                player3.alive = True
+        if event.key == pygame.K_a:
+            moving_left = True
+            d = 1
+        if event.key == pygame.K_d:
+            moving_right = True
+            d = 0
+        if event.key == pygame.K_SPACE:
+            shoot = True
+        if event.key == pygame.K_LSHIFT:
+            tir = True
+            tir_thrown = False
+        if event.key == pygame.K_w and ft.player.alive and not ft.player.in_air:
+            ft.player.jump = True
+        if event.key == pygame.K_c:  # Add this line to toggle camera_follow
+            ft.player.camera_follow = not ft.player.camera_follow
+    if event.type == pygame.KEYUP:
+        if event.key == pygame.K_a:
+            moving_left = False
+            d = 1
+        if event.key == pygame.K_d:
+            moving_right = False
+            d = 0
+        if event.key == pygame.K_SPACE:
+            shoot = False
+        if event.key == pygame.K_LSHIFT:
+            tir_thrown = True
+            tir = False
+    return True
 
 while edame:
-
     prev_player_pos = ft.player.rect.copy()
 
     ft.draw_bg()
     ft.clock.tick(ft.FPS)
 
-    if moving_left:
+    if moving_right and moving_left:
+        mel = False
+        mer = False
+    elif moving_left:
         mel = True
         mer = False
     elif moving_right:
@@ -37,21 +82,20 @@ while edame:
         ft.Enemy.update_action(0)
 
     if ft.player.alive:
-        ft.player.draw()
         ft.player.update()
         ft.player.moving(moving_right, moving_left)
+        if ft.player.camera_follow:  # Update camera only if camera_follow is True
+            camera.update(ft.player)
 
     if ft.player.alive:
         if shoot:
             ft.player.shoot()
-
         elif tir and not tir_thrown and ft.player.tiran > 0:
             tirzadan = ft.tirc(ft.player.rect.centerx + (1 * ft.player.rect.size[0] * ft.player.direction),
                                ft.player.rect.top - 20,
-                               ft.player.direction, ft.nize_hormazdgam, 2, 100)
+                               ft.player.direction, ft.nize_hormazdgan, 2, 100)
             ft.tir_mazda_group.add(tirzadan)
             tir_thrown = True
-            tirzadan.update()
             ft.player.tiran -= 1
         if ft.player.in_air:
             ft.player.update_action(2)
@@ -59,24 +103,28 @@ while edame:
             ft.player.update_action(0)
         elif moving_left or moving_right:
             ft.player.update_action(1)
-            ft.Enemy.update_action(1)
 
     if ft.Enemy.alive:
-        ft.Enemy.draw()
         ft.Enemy.update()
         ft.Enemy.moving(mer, mel)
     else:
         ft.Enemy.dead()
 
+    if ft.player.alive:
+        if ft.player.rect.y < 241:
+            ft.player.in_air = True
+        else:
+            ft.player.in_air = False
+
     if ft.Enemy.alive:
         if ft.player.rect.colliderect(ft.Enemy.rect):
-            if prev_player_pos.bottom <= ft.Enemy.rect.top and ft.player.rect.bottom > ft.Enemy.rect.top:
+            if prev_player_pos.bottom <= ft.Enemy.rect.top < ft.player.rect.bottom:
                 ft.player.rect.bottom = ft.Enemy.rect.top
-            elif prev_player_pos.top >= ft.Enemy.rect.bottom and ft.player.rect.top < ft.Enemy.rect.bottom:
+            elif prev_player_pos.top >= ft.Enemy.rect.bottom > ft.player.rect.top:
                 ft.player.rect.top = ft.Enemy.rect.bottom
-            elif prev_player_pos.right <= ft.Enemy.rect.left and ft.player.rect.right > ft.Enemy.rect.left:
+            elif prev_player_pos.right <= ft.Enemy.rect.left < ft.player.rect.right:
                 ft.player.rect.right = ft.Enemy.rect.left
-            elif prev_player_pos.left >= ft.Enemy.rect.right and ft.player.rect.left < ft.Enemy.rect.right:
+            elif prev_player_pos.left >= ft.Enemy.rect.right > ft.player.rect.left:
                 ft.player.rect.left = ft.Enemy.rect.right
 
     if player3.alive:
@@ -97,41 +145,8 @@ while edame:
     timerr -= 0.01
 
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        if not handle_input(event):
             edame = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                if not player3.alive:
-                    if ft.player.alive:
-                        player3.alive = True
-
-            if event.key == pygame.K_a:
-                moving_left = True
-                d = 1
-            if event.key == pygame.K_d:
-                moving_right = True
-                d = 0
-            if event.key == pygame.K_SPACE:
-                shoot = True
-            if event.key == pygame.K_LSHIFT:
-                tir = True
-                tir_thrown = False
-            if event.key == pygame.K_w and ft.player.alive:
-                ft.player.jump = True
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_a:
-                moving_left = False
-                player_x -= 20
-                d = 1
-            if event.key == pygame.K_d:
-                moving_right = False
-                player_x += 20
-                d = 0
-            if event.key == pygame.K_SPACE:
-                shoot = False
-            if event.key == pygame.K_LSHIFT:
-                tir_thrown = True
-                tir = False
 
     pygame.display.update()
 
