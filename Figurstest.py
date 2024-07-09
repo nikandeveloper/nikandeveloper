@@ -1,14 +1,13 @@
 import pygame
 from pygame.locals import *
 import os
-import pygame.mixer
 import time
 import Datas
 
 pygame.init()
 pygame.mixer.init()
 
-size = Width, hieght = 800, 450
+size = Width, height = 800, 450
 Game = pygame.display.set_mode(size)
 pygame.display.set_caption("Home-coming")
 
@@ -27,17 +26,37 @@ timerr1 = int(seda1w.get_length())
 playtir = False
 
 
+class Camera:
+    def __init__(self, width, height):
+        self.camera = pygame.Rect(0, 0, width, height)
+        self.width = width
+        self.height = height
+
+    def apply(self, entity):
+        return entity.rect.move(self.camera.topleft)
+
+    def update(self, target):
+        x = -target.rect.x + int(self.width / 2)
+        y = -target.rect.y + int(self.height / 2)
+
+        # Limit scrolling to map size
+        x = min(0, x)
+        y = min(0, y)
+        x = max(-(self.width - target.rect.width), x)
+        y = max(-(self.height - target.rect.height), y)
+
+        self.camera = pygame.Rect(x, y, self.width, self.height)
+
+camera = Camera(2000, Width)
+
+
 def draw_bg():
     Game.fill(BG)
     pygame.draw.line(Game, red, (0, 300), (Width, 300))
 
 
-def colllide(col, um):
-    ...
-
-
 class Solider(pygame.sprite.Sprite):
-    def __init__(self, x, y, char_type, scale, killwhenfinish, speed, ammo, tiran, animationfinish):
+    def __init__(self, x, y, char_type, scale, killwhenfinish, speed, ammo, tiran, animationfinish, camera_follow):
         pygame.sprite.Sprite.__init__(self)
         self.alive = True
         self.animationfinish = animationfinish
@@ -77,6 +96,7 @@ class Solider(pygame.sprite.Sprite):
         self.image = self.animations[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.camera_follow = camera_follow
 
     def update(self):
         self.update_animation()
@@ -117,7 +137,7 @@ class Solider(pygame.sprite.Sprite):
             self.speed = 0
             self.update_action(3)
             time.sleep(0.25)
-            player.alive = False
+            self.alive = False
 
     def moving(self, moving_right, moving_left):
         dx = 0
@@ -131,10 +151,10 @@ class Solider(pygame.sprite.Sprite):
             dx = self.speed
             self.flip = False
             self.direction = 1
-        if player.jump == True and player.in_air == False:
+        if self.jump and not self.in_air:
             self.vel_y = -11
-            player.jump = False
-            player.in_air = True
+            self.jump = False
+            self.in_air = True
 
         self.vel_y += GGravity
 
@@ -146,18 +166,21 @@ class Solider(pygame.sprite.Sprite):
 
         if self.rect.y + dy > bbb:
             dy = bbb - self.rect.y
-            player.in_air = False
+            self.in_air = False
 
         self.rect.x += dx
         self.rect.y += dy
 
-    def draw(self):
-        Game.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+    def draw(self, camera):
+        if self.camera_follow:
+            Game.blit(pygame.transform.flip(self.image, self.flip, False), camera.apply(self))
+        else:
+            Game.blit(pygame.transform.flip(self.image, self.flip, False), self.rect.topleft)
 
     def shoot(self):
         if self.shootcooldown == 0 and self.ammo > 0:
             self.shootcooldown = 20
-            bulllet = Bullet(self.rect.centerx + (25 * self.direction), self.rect.centery + 3, player.direction, bullet,
+            bulllet = Bullet(self.rect.centerx + (25 * self.direction), self.rect.centery + 3, self.direction, bullet,
                              2, 20)
             bullet_group.add(bulllet)
             self.ammo -= 1
@@ -227,16 +250,17 @@ class Create_Object(pygame.sprite.Sprite):
     def __init__(self, position, object, scale):
         pygame.sprite.Sprite.__init__(self)
         self.image = object
-        self.image = pygame.transform.scale(self.image, (int(self.image.get_width() * scale), int(self.image.get_height() * scale)))
+        self.image = pygame.transform.scale(self.image,
+                                            (int(self.image.get_width() * scale), int(self.image.get_height() * scale)))
         self.rect = self.image.get_rect()
         self.rect.center = position
         self.alive = True
 
     def draw(self, direction):
-        Game.blit(pygame.transform.flip(self.image, direction, False), self.rect)
+        Game.blit(pygame.transform.flip(self.image, direction, False), camera.apply(self))
 
     def update(self, position, direction):
-        Game.blit(pygame.transform.flip(self.image, direction, False), position)
+        Game.blit(pygame.transform.flip(self.image, direction, False), camera.apply(self))
 
     def death(self):
         self.kill()
@@ -254,7 +278,7 @@ class Bullet(pygame.sprite.Sprite):
         self.direction = direction
 
     def draw(self):
-        Game.blit(pygame.transform.flip(self.image, self.direction, False), self.rect)
+        Game.blit(pygame.transform.flip(self.image, self.direction, False), camera.apply(self))
 
     def update(self):
         self.rect.x += (self.direction * self.speed)
@@ -358,10 +382,51 @@ pygame.mixer.pre_init()
 pygame.mixer.init()
 pygame.init()
 
-player = Solider(Datas.player_x, Datas.player_y, "Player", 0, 1, 5, 200, 30, 0)
+player = Solider(Datas.player_x, Datas.player_y, "Player", 0, 1, 5, 200, 30, 0, True)
 gun = Create_Object(player.rect.center, Datas.gun2, 1.25)
 
 player3 = Create_Object((50, 50), Datas.gun2, 2)
-Enemy = Solider(Datas.player_x + 300, 283, "Enemyred", 0, 0, 5, 5, 5, 0)
+Enemy = Solider(Datas.player_x + 300, 283, "Enemyred", 0, 0, 5, 5, 5, 0, False)
 
+# Main game loop
+running = True
+while running:
+    clock.tick(FPS)
 
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    moving_left = False
+    moving_right = False
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_a]:
+        moving_left = True
+    if keys[pygame.K_d]:
+        moving_right = True
+    if keys[pygame.K_SPACE]:
+        player.jump = True
+    if keys[pygame.K_f]:
+        player.shoot()
+
+    player.moving(moving_right, moving_left)
+
+    camera.update(player)
+
+    draw_bg()
+    player.update()
+    player.draw(camera)
+    Enemy.update()
+    Enemy.draw(camera)
+    gun.update(player.rect.center, player.flip)
+    gun.draw(player.flip)
+
+    bullet_group.update()
+    bullet_group.draw(Game)
+    explosion_group.update()
+    explosion_group.draw(Game)
+
+    pygame.display.flip()
+
+pygame.quit()
