@@ -1,0 +1,29 @@
+          >set.
+A/Engine.=>platformer.
+          >init(none)
+
+       
+     >position(X,Y)
+     >animation(sprite number)
+set.=>size(number)
+     >direction(number)
+     >name(string)
+
+            >changespeedby(number)
+platformer.=>gravity(number)
+            >jumpspeed(number)
+
+        >restart.
+D/omid.=>stop.
+        >gotoscene(scene number)
+
+
+
+restart.=>game(none)
+	 >scene(scene number)
+
+
+
+
+stop.=>game(none)
+      >scene(scene number)
