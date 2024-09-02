@@ -1,400 +1,496 @@
-import tkinter as tk
-from tkinter import colorchooser, messagebox, scrolledtext, filedialog, simpledialog
-from PIL import Image, ImageTk
-import pygame
-import pygame.surfarray
-import numpy as np
-import traceback
-
-class PygameCanvas(tk.Canvas):
-    def __init__(self, master):
-        super().__init__(master, bg='white')
-        self.master = master
-        self.pack(fill=tk.BOTH, expand=True)
-
-        # Initialize Pygame
-        pygame.init()
-        self.surface = pygame.Surface((1400, 600))  # Use a surface to draw objects
-        self.objects = []
-        self.dragging_object = None  # Track the object being dragged
-        self.drag_start_x = 0
-        self.drag_start_y = 0
-
-        self.bind("<Button-1>", self.on_click)
-        self.bind("<B1-Motion>", self.on_drag)
-        self.bind("<ButtonRelease-1>", self.on_release)
-
-    def add_image(self, image_path, x, y, width, height):
-        try:
-            # Load and scale the image
-            image = pygame.image.load(image_path)
-            image = pygame.transform.scale(image, (width, height))
-
-            # Store image information
-            img_dict = {
-                'type': 'image',
-                'image_path': image_path,  # Corrected from 'path'
-                'x': x,
-                'y': y,
-                'width': width,
-                'height': height
-            }
-            # Remove previous image of the same name if it exists
-            self.objects = [obj for obj in self.objects if not (obj['type'] == 'image' and obj['image_path'] == image_path)]
-            self.objects.append(img_dict)
-
-            # Redraw objects
-            self.draw_objects(self.objects)
-        except Exception as e:
-            messagebox.showerror("Image Load Error", f"Failed to load image: {e}")
-
-    def draw_objects(self, objects):
-        self.objects = objects
-        self.surface.fill((255, 255, 255))  # Clear the surface with white background
-
-        for obj in objects:
-            obj_type = obj.get('type', 'rect')
-            color = pygame.Color(obj.get('color', '#0000FF'))  # Default color if not set
-            x, y, width, height = obj['x'], obj['y'], obj['width'], obj['height']
-
-            if obj_type == 'rect':
-                pygame.draw.rect(self.surface, color, pygame.Rect(x, y, width, height))
-
-            elif obj_type == 'image':  # Corrected from `if obj_type == 'image':`
-                image_path = obj.get('image_path')
-                if image_path:
-                    try:
-                        image = pygame.image.load(image_path)
-                        image = pygame.transform.scale(image, (width, height))  # Scale image to object size
-                        self.surface.blit(image, (x, y))  # Draw image on surface
-                        print(f"Rendering image from {image_path} at ({x}, {y}) with size ({width}, {height})")
-                    except pygame.error as e:
-                        print(f"Error loading image from {image_path}: {e}")
-                else:
-                    print(f"No image path provided for object: {obj.get('name')}")
-
-            else:
-                print(f"Unknown object type: {obj_type}")
-
-        self.pygame_to_tk()
-
-    def update_object(self, updated_object):
-        for obj in self.objects:
-            if obj['name'] == updated_object['name']:
-                obj.update(updated_object)
-                break
-        self.draw_objects(self.objects)
-
-    def rotate_and_scale_image(self, image_path, angle, scale):
-        try:
-            image = pygame.image.load(image_path)
-            width, height = image.get_size()
-            scaled_size = (int(width * scale), int(height * scale))
-            image = pygame.transform.scale(image, scaled_size)
-            rotated_image = pygame.transform.rotate(image, angle)
-            return rotated_image
-        except Exception as e:
-            messagebox.showerror("Image Processing Error", f"Failed to process image: {e}")
-            return None
-
-    def pygame_to_tk(self):
-        pygame_image = pygame.surfarray.array3d(self.surface)
-        pygame_image = np.transpose(pygame_image, (1, 0, 2))  # Transpose to (width, height, color)
-        pygame_image = Image.fromarray(pygame_image)
-        pygame_image = pygame_image.convert('RGB')
-
-        self.tk_image = ImageTk.PhotoImage(image=pygame_image)
-        self.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
-
-    def on_click(self, event):
-        for obj in self.objects:
-            rect = pygame.Rect(obj['x'], obj['y'], obj['width'], obj['height'])
-            if rect.collidepoint(event.x, event.y):
-                self.dragging_object = obj
-                self.drag_start_x = event.x
-                self.drag_start_y = event.y
-                break
-
-    def on_drag(self, event):
-        if self.dragging_object:
-            dx = event.x - self.drag_start_x
-            dy = event.y - self.drag_start_y
-            self.dragging_object['x'] += dx
-            self.dragging_object['y'] += dy
-            self.drag_start_x = event.x
-            self.drag_start_y = event.y
-
-            # Redraw objects
-            self.draw_objects(self.objects)
-
-            # Update the properties in the UI to reflect the new position
-            self.update_object_properties_ui()
-
-            # Use `self` to access the method, not `GameEditorApp`
-            self.master.select_object_from_hierarchy()
-
-    def update_object_properties_ui(self):
-        """Update the UI elements with the current object's properties."""
-        if self.dragging_object:
-            self.master.object_name_entry.delete(0, tk.END)
-            self.master.object_name_entry.insert(0, self.dragging_object['name'])
-            self.master.object_x_entry.delete(0, tk.END)
-            self.master.object_x_entry.insert(0, self.dragging_object['x'])
-            self.master.object_y_entry.delete(0, tk.END)
-            self.master.object_y_entry.insert(0, self.dragging_object['y'])
-            self.master.object_width_entry.delete(0, tk.END)
-            self.master.object_width_entry.insert(0, self.dragging_object['width'])
-            self.master.object_height_entry.delete(0, tk.END)
-            self.master.object_height_entry.insert(0, self.dragging_object['height'])
-            self.master.object_speed_entry.delete(0, tk.END)
-            self.master.object_speed_entry.insert(0, self.dragging_object['speed'])
-            self.master.collider_var.set(self.dragging_object.get('collider', False))
-            self.master.color_button.config(bg=self.dragging_object['color'])
-
-    def on_release(self, event):
-        if self.dragging_object:
-            self.dragging_object = None
-            self.pygame_to_tk()
+import sys
+import json
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QPushButton, QLabel, QLineEdit,
+    QFrame, QListWidget, QFormLayout, QFileDialog, QInputDialog, QColorDialog, QMessageBox,
+    QGraphicsScene, QGraphicsView, QGraphicsRectItem, QGraphicsPixmapItem, QTableWidget, QTableWidgetItem, QAbstractItemView
+)
+from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
+from PyQt6.QtCore import Qt, QRectF, QPointF
+from collections import deque
+import os
 
 
-class GameEditorApp(tk.Tk):
+class DraggableGraphicsItem(QGraphicsRectItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionChange:
+            if self.scene():
+                editor = self.scene().parent().parent()
+                editor.update_property_fields()
+        return super().itemChange(change, value)
+
+
+class DraggablePixmapItem(QGraphicsPixmapItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFlag(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsPixmapItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+        self.setFlag(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsSelectable, True)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsPixmapItem.GraphicsItemChange.ItemPositionChange:
+            if self.scene():
+                editor = self.scene().parent().parent()
+                editor.update_property_fields()
+        return super().itemChange(change, value)
+
+
+class GameEditorApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.global_script = ''
-        self.title("Game Editor")
-        self.geometry("1200x800")
-        global current_scene_name
-        current_scene_name = None
-        self.selected_object = None
+        self.setWindowTitle("Graphical Editor")
+        self.setGeometry(100, 100, 1200, 800)
+        self.setStyleSheet("background-color: #2e2e2e;")  # Dark background
 
-        # Create frames for different panels
-        self.create_panels()
-        self.update_scene_list()
+        self.scenes = {}
+        self.current_scene = None
+        self.current_item = None
+        self.current_item_index = -1
 
-    def load_image(self):
-        if not self.selected_object:
-            messagebox.showwarning("No Object Selected", "Please select an object before loading an image.")
-            return
+        self.undo_stack = deque()
+        self.redo_stack = deque()
 
-        image_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp")])
-        if image_path:
-            width = self.selected_object['width']
-            height = self.selected_object['height']
-            self.pygame_canvas.add_image(image_path, self.selected_object['x'], self.selected_object['y'], width,
-                                         height)
+        self.initUI()
 
-    def create_panels(self):
-        # Left panel for Scene Management
-        self.scene_manager_frame = tk.Frame(self, width=200, bg='#f0f0f0')
-        self.scene_manager_frame.pack(side=tk.RIGHT, fill=tk.Y)
+    def initUI(self):
+        # Main layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
 
-        tk.Label(self.scene_manager_frame, text="Scenes", bg='#f0f0f0').pack(pady=10)
-        self.scene_listbox = tk.Listbox(self.scene_manager_frame)
-        self.scene_listbox.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-        self.scene_listbox.bind("<ButtonRelease-1>", self.select_scene)
-        self.scene_listbox.bind("<Button-3>", self.show_scene_context_menu)
+        # Toolbar
+        self.create_toolbar(main_layout)
 
-        self.create_scene_button = tk.Button(self.scene_manager_frame, text="Create Scene", command=self.create_scene)
-        self.create_scene_button.pack(pady=5)
-        self.rename_scene_button = tk.Button(self.scene_manager_frame, text="Rename Scene", command=self.rename_scene)
-        self.rename_scene_button.pack(pady=5)
-        self.delete_scene_button = tk.Button(self.scene_manager_frame, text="Delete Scene", command=self.delete_scene)
-        self.delete_scene_button.pack(pady=5)
+        # Main Splitter
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_layout.addWidget(splitter)
 
-        # Right panel for Object Management
-        self.object_manager_frame = tk.Frame(self, width=200, bg='#f0f0f0')
-        self.object_manager_frame.pack(side=tk.LEFT, fill=tk.Y)
+        # Left Panel (Sidebar)
+        self.create_side_panels(splitter)
 
-        tk.Label(self.object_manager_frame, text="Objects", bg='#f0f0f0').pack(pady=10)
-        self.object_listbox = tk.Listbox(self.object_manager_frame)
-        self.object_listbox.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-        self.object_listbox.bind("<ButtonRelease-1>", self.select_object_from_hierarchy)
-        self.object_listbox.bind("<Button-3>", self.show_object_context_menu)
+        # Right Panel (Inspector)
+        self.create_inspector_panel(splitter)
 
-        self.create_object_button = tk.Button(self.object_manager_frame, text="Add Object", command=self.add_object)
-        self.create_object_button.pack(pady=5)
-        self.delete_object_button = tk.Button(self.object_manager_frame, text="Delete Object",
-                                              command=self.delete_selected_object)
-        self.delete_object_button.pack(pady=5)
+        # Canvas Area
+        self.create_canvas_area(splitter)
 
-        # Middle panel for Property Management
-        self.property_manager_frame = tk.Frame(self, width=200, bg='#f0f0f0')
-        self.property_manager_frame.pack(side=tk.LEFT, fill=tk.Y)
+    def create_toolbar(self, layout):
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(0, 0, 0, 0)
+        toolbar.setSpacing(2)
 
-        tk.Label(self.property_manager_frame, text="Object Properties", bg='#f0f0f0').pack(pady=10)
+        new_scene_btn = QPushButton()
+        new_scene_btn.setIcon(QIcon("path/to/new_scene_icon.png"))
+        new_scene_btn.setToolTip("Create a new scene")
+        new_scene_btn.setStyleSheet("background-color: #555555; color: white;")
+        new_scene_btn.clicked.connect(self.create_scene)
+        toolbar.addWidget(new_scene_btn)
 
-        tk.Label(self.property_manager_frame, text="Name:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.object_name_entry = tk.Entry(self.property_manager_frame)
-        self.object_name_entry.pack(fill=tk.X, padx=10, pady=5)
+        add_rect_btn = QPushButton()
+        add_rect_btn.setIcon(QIcon("path/to/add_rectangle_icon.png"))
+        add_rect_btn.setToolTip("Add Rectangle")
+        add_rect_btn.setStyleSheet("background-color: #555555; color: white;")
+        add_rect_btn.clicked.connect(self.add_rectangle)
+        toolbar.addWidget(add_rect_btn)
 
-        tk.Label(self.property_manager_frame, text="X:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.object_x_entry = tk.Entry(self.property_manager_frame)
-        self.object_x_entry.pack(fill=tk.X, padx=10, pady=5)
+        add_img_btn = QPushButton()
+        add_img_btn.setIcon(QIcon("path/to/add_image_icon.png"))
+        add_img_btn.setToolTip("Add Image")
+        add_img_btn.setStyleSheet("background-color: #555555; color: white;")
+        add_img_btn.clicked.connect(self.add_image)
+        toolbar.addWidget(add_img_btn)
 
-        tk.Label(self.property_manager_frame, text="Y:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.object_y_entry = tk.Entry(self.property_manager_frame)
-        self.object_y_entry.pack(fill=tk.X, padx=10, pady=5)
+        undo_btn = QPushButton()
+        undo_btn.setIcon(QIcon("path/to/undo_icon.png"))
+        undo_btn.setToolTip("Undo")
+        undo_btn.setStyleSheet("background-color: #555555; color: white;")
+        undo_btn.clicked.connect(self.undo)
+        toolbar.addWidget(undo_btn)
 
-        tk.Label(self.property_manager_frame, text="Width:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.object_width_entry = tk.Entry(self.property_manager_frame)
-        self.object_width_entry.pack(fill=tk.X, padx=10, pady=5)
+        redo_btn = QPushButton()
+        redo_btn.setIcon(QIcon("path/to/redo_icon.png"))
+        redo_btn.setToolTip("Redo")
+        redo_btn.setStyleSheet("background-color: #555555; color: white;")
+        redo_btn.clicked.connect(self.redo)
+        toolbar.addWidget(redo_btn)
 
-        tk.Label(self.property_manager_frame, text="Height:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.object_height_entry = tk.Entry(self.property_manager_frame)
-        self.object_height_entry.pack(fill=tk.X, padx=10, pady=5)
+        layout.addLayout(toolbar)
 
-        tk.Label(self.property_manager_frame, text="Speed:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.object_speed_entry = tk.Entry(self.property_manager_frame)
-        self.object_speed_entry.pack(fill=tk.X, padx=10, pady=5)
+    def create_side_panels(self, splitter):
+        left_panel = QFrame()
+        left_panel.setStyleSheet("background-color: #3a3a3a;")
+        left_panel.setFixedWidth(200)
+        left_panel_layout = QVBoxLayout(left_panel)
 
-        tk.Label(self.property_manager_frame, text="Color:", anchor=tk.W, bg='#f0f0f0').pack(anchor=tk.W, padx=10)
-        self.color_button = tk.Button(self.property_manager_frame, bg="#000000", command=self.choose_color)
-        self.color_button.pack(fill=tk.X, padx=10, pady=5)
+        scenes_label = QLabel("Scenes")
+        scenes_label.setStyleSheet("color: white;")
+        left_panel_layout.addWidget(scenes_label)
 
-        self.collider_var = tk.BooleanVar()
-        self.collider_checkbox = tk.Checkbutton(self.property_manager_frame, text="Collider",
-                                                variable=self.collider_var, bg='#f0f0f0')
-        self.collider_checkbox.pack(anchor=tk.W, padx=10)
+        self.scene_list = QListWidget()
+        self.scene_list.setStyleSheet("background-color: #4e4e4e; color: white;")
+        self.scene_list.currentItemChanged.connect(self.select_scene)
+        left_panel_layout.addWidget(self.scene_list)
 
-        # Add canvas for drawing objects
-        self.pygame_canvas = PygameCanvas(self)
-        self.pygame_canvas.pack(fill=tk.BOTH, expand=True)
+        scene_buttons_layout = QVBoxLayout()
+
+        create_scene_btn = QPushButton("Create Scene")
+        create_scene_btn.setStyleSheet("background-color: #555555; color: white;")
+        create_scene_btn.clicked.connect(self.create_scene)
+        scene_buttons_layout.addWidget(create_scene_btn)
+
+        rename_scene_btn = QPushButton("Rename Scene")
+        rename_scene_btn.setStyleSheet("background-color: #555555; color: white;")
+        rename_scene_btn.clicked.connect(self.rename_scene)
+        scene_buttons_layout.addWidget(rename_scene_btn)
+
+        delete_scene_btn = QPushButton("Delete Scene")
+        delete_scene_btn.setStyleSheet("background-color: #555555; color: white;")
+        delete_scene_btn.clicked.connect(self.delete_scene)
+        scene_buttons_layout.addWidget(delete_scene_btn)
+
+        left_panel_layout.addLayout(scene_buttons_layout)
+        splitter.addWidget(left_panel)
+
+    def create_inspector_panel(self, splitter):
+        right_panel = QFrame()
+        right_panel.setStyleSheet("background-color: #3a3a3a;")
+        right_panel.setFixedWidth(300)
+
+        inspector_layout = QVBoxLayout(right_panel)
+
+        self.properties_table = QTableWidget()
+        self.properties_table.setColumnCount(2)
+        self.properties_table.setHorizontalHeaderLabels(["Property", "Value"])
+        self.properties_table.horizontalHeader().setStretchLastSection(True)
+        self.properties_table.setEditTriggers(QAbstractItemView.EditTrigger.AllEditTriggers)
+        self.properties_table.setStyleSheet("background-color: #4e4e4e; color: white;")
+        inspector_layout.addWidget(self.properties_table)
+
+        self.properties_table.itemChanged.connect(self.handle_item_edited)
+
+        splitter.addWidget(right_panel)
+
+    def create_canvas_area(self, splitter):
+        canvas_frame = QFrame()
+        canvas_frame.setStyleSheet("background-color: #2e2e2e;")
+        canvas_layout = QVBoxLayout(canvas_frame)
+
+        self.canvas_scene = QGraphicsScene()
+        self.canvas_view = QGraphicsView(self.canvas_scene)
+        self.canvas_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.canvas_view.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        self.canvas_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.canvas_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.canvas_view.setScene(self.canvas_scene)
+        canvas_layout.addWidget(self.canvas_view)
+
+        splitter.addWidget(canvas_frame)
+
+        # Optional grid
+        self.draw_grid()
+
+    def draw_grid(self):
+        for i in range(-2000, 2000, 20):
+            self.canvas_scene.addLine(i, -2000, i, 2000, QColor("#d3d3d3"))
+        for j in range(-2000, 2000, 20):
+            self.canvas_scene.addLine(-2000, j, 2000, j, QColor("#d3d3d3"))
 
     def create_scene(self):
-        scene_name = simpledialog.askstring("Scene Name", "Enter a name for the new scene:")
-        if scene_name:
-            if scene_name in scenes:
-                messagebox.showwarning("Duplicate Scene", "A scene with this name already exists.")
+        name, ok = QInputDialog.getText(self, "Create Scene", "Enter scene name:")
+        if ok and name:
+            if name not in self.scenes:
+                self.scenes[name] = []
+                self.scene_list.addItem(name)
+                self.select_scene(self.scene_list.currentItem())
+                self.perform_action({'action': 'create_scene', 'name': name})
             else:
-                scenes[scene_name] = {
-                    'objects': [],
-                    'script': ''
-                }
-                self.update_scene_list()
-                self.scene_listbox.select_set(tk.END)
-                self.select_scene(None)
+                QMessageBox.warning(self, "Warning", "Scene already exists.")
 
-    def update_scene_list(self):
-        self.scene_listbox.delete(0, tk.END)
-        for scene_name in scenes.keys():
-            self.scene_listbox.insert(tk.END, scene_name)
-
-    def select_scene(self, event):
-        global current_scene_name
-        selection = self.scene_listbox.curselection()
-        if selection:
-            current_scene_name = self.scene_listbox.get(selection[0])
-            self.update_object_listbox()
-            self.pygame_canvas.draw_objects(scenes[current_scene_name]['objects'])
-            print(f"Selected scene: {current_scene_name}")
+    def select_scene(self, item):
+        if item:
+            scene_name = item.text()
+            if scene_name in self.scenes:
+                self.current_scene = scene_name
+                self.current_item = None
+                self.current_item_index = -1
+                self.update_object_hierarchy()
+                self.update_canvas()
 
     def rename_scene(self):
-        global current_scene_name
-        if current_scene_name:
-            new_scene_name = simpledialog.askstring("New Scene Name", "Enter the new name for the scene:")
-            if new_scene_name and new_scene_name not in scenes:
-                scenes[new_scene_name] = scenes.pop(current_scene_name)
-                current_scene_name = new_scene_name
-                self.update_scene_list()
-                self.select_scene(None)
+        if self.current_scene:
+            new_name, ok = QInputDialog.getText(self, "Rename Scene", "Enter new scene name:")
+            if ok and new_name and new_name not in self.scenes:
+                row = self.scene_list.currentRow()
+                self.scene_list.takeItem(row)
+                self.scene_list.insertItem(row, new_name)
+                self.scenes[new_name] = self.scenes.pop(self.current_scene)
+                self.current_scene = new_name
+                self.update_canvas()
+                self.perform_action({'action': 'rename_scene', 'old_name': self.current_scene, 'new_name': new_name})
+            else:
+                QMessageBox.warning(self, "Warning", "Invalid scene name or scene already exists.")
 
     def delete_scene(self):
-        global current_scene_name
-        if current_scene_name:
-            confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the scene '{current_scene_name}'?")
-            if confirm:
-                scenes.pop(current_scene_name)
-                current_scene_name = None
-                self.update_scene_list()
-                self.update_object_listbox()
-                self.pygame_canvas.draw_objects([])  # Clear the canvas
+        if self.current_scene:
+            self.scenes.pop(self.current_scene)
+            row = self.scene_list.currentRow()
+            self.scene_list.takeItem(row)
+            self.current_scene = None
+            self.update_canvas()
+            self.perform_action({'action': 'delete_scene', 'name': self.current_scene})
 
-    def open_scene_script_editor(self):
-        if current_scene_name:
-            self.open_script_editor(scenes[current_scene_name])
+    def add_rectangle(self):
+        if not self.current_scene:
+            return
 
-    def open_script_editor(self, script_data):
-        script_window = tk.Toplevel(self)
-        script_window.title("Script Editor")
+        x, ok_x = QInputDialog.getInt(self, "Rectangle Position", "Enter X position:")
+        y, ok_y = QInputDialog.getInt(self, "Rectangle Position", "Enter Y position:")
+        width, ok_w = QInputDialog.getInt(self, "Rectangle Size", "Enter width:")
+        height, ok_h = QInputDialog.getInt(self, "Rectangle Size", "Enter height:")
+        angle, ok_a = QInputDialog.getInt(self, "Rectangle Angle", "Enter angle:")
+        color = QColorDialog.getColor()
 
-        script_text = scrolledtext.ScrolledText(script_window)
-        script_text.insert(tk.END, script_data['script'])
-        script_text.pack(fill=tk.BOTH, expand=True)
+        if ok_x and ok_y and ok_w and ok_h and ok_a and color.isValid() and width > 0 and height > 0:
+            obj = {
+                'type': 'rectangle', 'name': f"Rectangle {len(self.scenes[self.current_scene])+1}",
+                'x': x, 'y': y, 'width': width, 'height': height, 'angle': angle, 'color': color.name()
+            }
+            self.scenes[self.current_scene].append(obj)
+            self.update_object_hierarchy()
+            self.update_canvas()
+            self.perform_action({'action': 'add_rectangle', 'object': obj})
 
-        def save_script():
-            script_data['script'] = script_text.get("1.0", tk.END)
-            script_window.destroy()
+    def add_image(self):
+        if not self.current_scene:
+            return
 
-        save_button = tk.Button(script_window, text="Save", command=save_script)
-        save_button.pack(pady=10)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.png *.jpg *.bmp)")
+        if file_path:
+            x, ok_x = QInputDialog.getInt(self, "Image Position", "Enter X position:")
+            y, ok_y = QInputDialog.getInt(self, "Image Position", "Enter Y position:")
 
-    def choose_color(self):
-        color_code = colorchooser.askcolor(title="Choose Color")
-        if color_code:
-            self.color_button.config(bg=color_code[1])
-            if self.selected_object:
-                self.selected_object['color'] = color_code[1]
-                self.pygame_canvas.update_object(self.selected_object)
+            if ok_x and ok_y and os.path.isfile(file_path):
+                obj = {'type': 'image', 'name': f"Image {len(self.scenes[self.current_scene])+1}",
+                       'file_path': file_path, 'x': x, 'y': y}
+                self.scenes[self.current_scene].append(obj)
+                self.update_object_hierarchy()
+                self.update_canvas()
+                self.perform_action({'action': 'add_image', 'object': obj})
+            else:
+                QMessageBox.warning(self, "Warning", "Invalid file path or position.")
 
-    def select_object_from_hierarchy(self, event=None):
-        global current_scene_name
-        selection = self.object_listbox.curselection()
-        if selection and current_scene_name:
-            selected_object_name = self.object_listbox.get(selection[0])
-            for obj in scenes[current_scene_name]['objects']:
-                if obj['name'] == selected_object_name:
-                    self.selected_object = obj
-                    self.update_object_properties_ui()
-                    break
+    def handle_item_edited(self, item):
+        if self.current_item is not None and self.current_scene:
+            column = item.column()
+            if column == 1:
+                value = item.text()
+                if self.current_item['type'] == 'rectangle':
+                    if item.row() == 1:  # Position
+                        x, y = [int(v) for v in value.split(',')]
+                        self.current_item['x'] = x
+                        self.current_item['y'] = y
+                    elif item.row() == 2:  # Size
+                        width, height = [int(v) for v in value.split(',')]
+                        self.current_item['width'] = width
+                        self.current_item['height'] = height
+                    elif item.row() == 3:  # Angle
+                        self.current_item['angle'] = int(value)
+                    elif item.row() == 4:  # Color
+                        self.current_item['color'] = value
+                elif self.current_item['type'] == 'image':
+                    if item.row() == 1:  # File
+                        if os.path.isfile(value):
+                            self.current_item['file_path'] = value
+                        else:
+                            QMessageBox.warning(self, "Warning", "Invalid file path.")
+                    elif item.row() == 2:  # Position
+                        x, y = [int(v) for v in value.split(',')]
+                        self.current_item['x'] = x
+                        self.current_item['y'] = y
+                self.update_canvas()
+                self.perform_action({'action': 'edit_item', 'item': self.current_item})
 
-    def add_object(self):
-        global current_scene_name
-        if current_scene_name:
-            new_object_name = simpledialog.askstring("Object Name", "Enter the name for the new object:")
-            if new_object_name:
-                new_object = {
-                    'name': new_object_name,
-                    'type': 'rect',
-                    'x': 50,
-                    'y': 50,
-                    'width': 100,
-                    'height': 100,
-                    'color': '#0000FF',  # Default color is blue
-                    'speed': 0,
-                    'collider': False,
-                    'image_path': None  # No image by default
-                }
-                scenes[current_scene_name]['objects'].append(new_object)
-                self.update_object_listbox()
-                self.pygame_canvas.draw_objects(scenes[current_scene_name]['objects'])
-                print(f"Added new object: {new_object}")
+    def update_object_hierarchy(self):
+        self.properties_table.setRowCount(0)
+        if self.current_scene:
+            for index, obj in enumerate(self.scenes.get(self.current_scene, [])):
+                row_position = self.properties_table.rowCount()
+                self.properties_table.insertRow(row_position)
+                self.properties_table.setItem(row_position, 0, QTableWidgetItem(obj['name']))
+                if obj['type'] == 'rectangle':
+                    self.properties_table.setItem(
+                        row_position, 1, QTableWidgetItem(
+                            f"Pos: ({obj['x']}, {obj['y']}), Size: ({obj['width']}x{obj['height']}), Angle: {obj['angle']}, Color: {obj['color']}"
+                        )
+                    )
+                elif obj['type'] == 'image':
+                    self.properties_table.setItem(
+                        row_position, 1, QTableWidgetItem(
+                            f"File: {obj['file_path']}, Pos: ({obj['x']}, {obj['y']})"
+                        )
+                    )
 
-    def update_object_listbox(self):
-        self.object_listbox.delete(0, tk.END)
-        if current_scene_name:
-            for obj in scenes[current_scene_name]['objects']:
-                self.object_listbox.insert(tk.END, obj['name'])
+                self.properties_table.cellClicked.connect(self.object_selected)
 
-    def show_scene_context_menu(self, event):
-        scene_menu = tk.Menu(self, tearoff=0)
-        scene_menu.add_command(label="Open Script Editor", command=self.open_scene_script_editor)
-        scene_menu.post(event.x_root, event.y_root)
+    def update_canvas(self):
+        self.canvas_scene.clear()
+        self.draw_grid()
+        if self.current_scene:
+            for obj in self.scenes.get(self.current_scene, []):
+                if obj['type'] == 'rectangle':
+                    rect = DraggableGraphicsItem(obj['x'], obj['y'], obj['width'], obj['height'])
+                    rect.setBrush(QColor(obj['color']))
+                    rect.setTransformOriginPoint(obj['x'] + obj['width'] / 2, obj['y'] + obj['height'] / 2)
+                    rect.setRotation(obj['angle'])
+                    self.canvas_scene.addItem(rect)
+                elif obj['type'] == 'image':
+                    pixmap = QPixmap(obj['file_path'])
+                    pixmap_item = DraggablePixmapItem(pixmap)
+                    pixmap_item.setPos(obj['x'], obj['y'])
+                    self.canvas_scene.addItem(pixmap_item)
 
-    def show_object_context_menu(self, event):
-        object_menu = tk.Menu(self, tearoff=0)
-        object_menu.add_command(label="Delete Object", command=self.delete_selected_object)
-        object_menu.post(event.x_root, event.y_root)
+    def object_selected(self, row, column):
+        if self.current_scene:
+            self.current_item_index = row
+            self.current_item = self.scenes[self.current_scene][self.current_item_index]
+            self.update_property_fields()
 
-    def delete_selected_object(self):
-        selected_object_name = self.object_listbox.curselection()
-        if selected_object_name:
-            obj_name = self.object_listbox.get(selected_object_name)
-            scenes[current_scene_name]['objects'] = [obj for obj in scenes[current_scene_name]['objects'] if obj['name'] != obj_name]
-            self.update_object_listbox()
-            self.pygame_canvas.draw_objects(scenes[current_scene_name]['objects'])
-            print(f"Deleted object: {obj_name}")
+    def update_property_fields(self):
+        if self.current_item is not None:
+            self.properties_table.setRowCount(0)
+            self.properties_table.insertRow(0)
+            self.properties_table.setItem(0, 0, QTableWidgetItem("Name"))
+            self.properties_table.setItem(0, 1, QTableWidgetItem(self.current_item['name']))
+
+            if self.current_item['type'] == 'rectangle':
+                self.properties_table.insertRow(1)
+                self.properties_table.setItem(1, 0, QTableWidgetItem("Position"))
+                self.properties_table.setItem(1, 1, QTableWidgetItem(f"X: {self.current_item['x']}, Y: {self.current_item['y']}"))
+
+                self.properties_table.insertRow(2)
+                self.properties_table.setItem(2, 0, QTableWidgetItem("Size"))
+                self.properties_table.setItem(2, 1, QTableWidgetItem(f"Width: {self.current_item['width']}, Height: {self.current_item['height']}"))
+
+                self.properties_table.insertRow(3)
+                self.properties_table.setItem(3, 0, QTableWidgetItem("Angle"))
+                self.properties_table.setItem(3, 1, QTableWidgetItem(str(self.current_item['angle'])))
+
+                self.properties_table.insertRow(4)
+                self.properties_table.setItem(4, 0, QTableWidgetItem("Color"))
+                self.properties_table.setItem(4, 1, QTableWidgetItem(self.current_item['color']))
+
+            elif self.current_item['type'] == 'image':
+                self.properties_table.insertRow(1)
+                self.properties_table.setItem(1, 0, QTableWidgetItem("File"))
+                self.properties_table.setItem(1, 1, QTableWidgetItem(self.current_item['file_path']))
+
+                self.properties_table.insertRow(2)
+                self.properties_table.setItem(2, 0, QTableWidgetItem("Position"))
+                self.properties_table.setItem(2, 1, QTableWidgetItem(f"X: {self.current_item['x']}, Y: {self.current_item['y']}"))
+
+    def undo(self):
+        if self.undo_stack:
+            action = self.undo_stack.pop()
+            self.redo_stack.append(action)
+            self.perform_action(action, undo=True)
+
+    def redo(self):
+        if self.redo_stack:
+            action = self.redo_stack.pop()
+            self.undo_stack.append(action)
+            self.perform_action(action)
+
+    def perform_action(self, action, undo=False):
+        action_type = action.get('action')
+
+        if action_type == 'create_scene':
+            if undo:
+                scene_name = action['name']
+                self.scenes.pop(scene_name)
+                row = self.scene_list.findItems(scene_name, Qt.MatchFlag.MatchExactly)[0]
+                self.scene_list.takeItem(self.scene_list.row(row))
+            else:
+                scene_name = action['name']
+                self.scenes[scene_name] = []
+                self.scene_list.addItem(scene_name)
+
+        elif action_type == 'rename_scene':
+            old_name = action['old_name']
+            new_name = action['new_name']
+            if undo:
+                self.scenes[old_name] = self.scenes.pop(new_name)
+                row = self.scene_list.findItems(new_name, Qt.MatchFlag.MatchExactly)[0]
+                self.scene_list.takeItem(self.scene_list.row(row))
+                self.scene_list.insertItem(self.scene_list.row(row), old_name)
+            else:
+                self.scenes[new_name] = self.scenes.pop(old_name)
+                row = self.scene_list.findItems(old_name, Qt.MatchFlag.MatchExactly)[0]
+                self.scene_list.takeItem(self.scene_list.row(row))
+                self.scene_list.insertItem(self.scene_list.row(row), new_name)
+
+        elif action_type == 'delete_scene':
+            scene_name = action['name']
+            if undo:
+                self.scenes[scene_name] = []
+                self.scene_list.addItem(scene_name)
+            else:
+                self.scenes.pop(scene_name)
+                row = self.scene_list.findItems(scene_name, Qt.MatchFlag.MatchExactly)[0]
+                self.scene_list.takeItem(self.scene_list.row(row))
+
+        elif action_type == 'add_rectangle':
+            obj = action['object']
+            if undo:
+                self.scenes[self.current_scene].remove(obj)
+            else:
+                self.scenes[self.current_scene].append(obj)
+            self.update_canvas()
+
+        elif action_type == 'add_image':
+            obj = action['object']
+            if undo:
+                self.scenes[self.current_scene].remove(obj)
+            else:
+                self.scenes[self.current_scene].append(obj)
+            self.update_canvas()
+
+        elif action_type == 'edit_item':
+            item = action['item']
+            if undo:
+                pass  # Implement undo logic for editing
+            else:
+                pass  # Implement redo logic for editing
+
+        self.update_canvas()
+
+    def save_scene(self):
+        if not self.current_scene:
+            QMessageBox.warning(self, "Warning", "No scene selected.")
+            return
+
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Scene", "", "JSON Files (*.json)")
+        if file_name:
+            with open(file_name, 'w') as file:
+                json.dump(self.scenes, file)
+            QMessageBox.information(self, "Success", "Scene saved successfully.")
+
+    def load_scene(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Load Scene", "", "JSON Files (*.json)")
+        if file_name:
+            with open(file_name, 'r') as file:
+                self.scenes = json.load(file)
+            self.select_scene(self.scene_list.currentItem())
+            QMessageBox.information(self, "Success", "Scene loaded successfully.")
+
 
 if __name__ == "__main__":
-    scenes = {}  # Dictionary to store scenes
-    app = GameEditorApp()
-    app.mainloop()
+    app = QApplication(sys.argv)
+    window = GameEditorApp()
+    window.show()
+    sys.exit(app.exec())
