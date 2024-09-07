@@ -56,7 +56,7 @@ class Scene2:
         camera.position = (0, 3, -10)
         camera.rotation = (20, 0, 0)
         self.selected = seeelected[0]
-        panel = Panel(scale=(0.3, 5), color=color.rgba(36, 36, 36), position=(-0.745, 1))
+        panel = Panel(scale=(0.315, 5), color=color.rgba(36, 36, 36), position=(-0.735, 1))
         self.txtselected = Text(text="", position=(-0.88, 0.5))
         self.txtwarn = Text(text="", position=(-0.45, 0.5), color=color.black)
         self.population_txt = Text(text="", position=(-0.88, 0.45))
@@ -134,9 +134,9 @@ class Scene2:
 
     def gameover(self):
         self.gameovertxt = Text(text="GAME OVER, your people starved", position=(-0.08, 0))
-        for position in list(blocks.keys()):
-            blocks[position].disable()
-            del blocks[position]
+        #for position in list(blocks.keys()):
+         #   blocks[position].disable()
+         #   del blocks[position]
 
     def uppppdate(self):
         self.peoplecapacit = (self.grass*15) + (self.mountain*5) + (self.jungle*10) + (self.house*5)
@@ -153,7 +153,6 @@ class Scene2:
             self.house = 0
             self.stone = 0
             self.wood = 0
-            destroy(self.sakhteman)
             self.delete_group('group1')
             self.groups = {'group1': []}
             self.edimode = True
@@ -166,7 +165,7 @@ class Scene2:
         if group_name in self.groups:
             for entity in self.groups[group_name]:
                 destroy(entity)
-            self.groups[group_name].clear() 
+            self.groups[group_name].clear()
             print(f"All entities in {group_name} have been destroyed")
         else:
             print(f"No such group: {group_name}")
