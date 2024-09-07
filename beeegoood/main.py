@@ -133,7 +133,7 @@ class Scene2:
         self.stone_txt.text = f"stone: {round(self.stone)}"
 
     def gameover(self):
-        self.gameovertxt = Text(text="GAME OVER, create more grass to save people from starving", position=(-0.08, 0))
+        self.gameovertxt = Text(text="GAME OVER, your people starved", position=(-0.08, 0))
         for position in list(blocks.keys()):
             blocks[position].disable()
             del blocks[position]
