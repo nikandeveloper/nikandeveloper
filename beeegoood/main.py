@@ -47,6 +47,7 @@ class Scene2:
         self.edimode = True
         self.people_placed = False
         self.peoplecapacit = 0
+        self.groups = {'group1': []}
         self.grass = 0
         self.jungle = 0
         self.mountain = 0
@@ -141,10 +142,11 @@ class Scene2:
         self.peoplecapacit = (self.grass*15) + (self.mountain*5) + (self.jungle*10) + (self.house*5)
         if self.martauma <= self.peoplecapacit:
            self.martauma *= 1.05
-        self.food += (self.grass * 1 * (self.martauma/4)) + self.farm*5
-        self.food -= self.martauma * 2
-        self.stone += self.mountain * 0.15 * self.martauma / 4
-        self.wood += self.jungle * 0.25 * self.martauma / 4
+        if self.martauma > 0:
+             self.food += (self.grass * 1) + self.farm*5
+             self.food -= self.martauma * 2
+             self.stone += self.mountain * 0.15
+             self.wood += self.jungle * 0.25
         if self.food < 0:
             self.martauma = 0
             self.farm = 0
@@ -152,11 +154,21 @@ class Scene2:
             self.stone = 0
             self.wood = 0
             destroy(self.sakhteman)
+            self.delete_group('group1')
             self.edimode = True
             self.people_placed = False
             self.food = 0
             self.gameover()
             destroy(self.gameovertxt, delay=3)
+
+    def delete_group(self, group_name):
+        if group_name in self.groups:
+            for entity in self.groups[group_name]:
+                destroy(entity)
+            self.groups[group_name].clear() 
+            print(f"All entities in {group_name} have been destroyed")
+        else:
+            print(f"No such group: {group_name}")
 
     def input(self, key):
         if key == 'left mouse down':
@@ -170,6 +182,7 @@ class Scene2:
                             mouse.hovered_entity.model_name = "notgrass"
                             print("people_placed")
                             self.martauma += 2
+                            self.groups['group1'].append(self.sakhteman)
                         if self.selected == seeelected[1]:
                             if self.wood >= 20 and self.stone >= 6:
                                 self.sakhteman = Entity(position=mouse.hovered_entity.position + Vec3(0, 0.61, 0), model=f'be_god_3d/{self.selected}.glb', scale=(0.2, 0.2, 0.2), collider="box")
