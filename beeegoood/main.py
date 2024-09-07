@@ -155,6 +155,7 @@ class Scene2:
             self.wood = 0
             destroy(self.sakhteman)
             self.delete_group('group1')
+            self.groups = {'group1': []}
             self.edimode = True
             self.people_placed = False
             self.food = 0
