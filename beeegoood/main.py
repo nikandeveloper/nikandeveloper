@@ -14,7 +14,7 @@ window.fullscreen = True
 
 
 class Block(Entity):
-    def __init__(self, position, color=color.white, **kwargs):
+    def __init__(self, position, color=color.white):
         super().__init__(model='cube', color=color, scale=(1, 1, 1), position=position, collider='box')
         self.position = position
 
