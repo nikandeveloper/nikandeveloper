@@ -1,7 +1,7 @@
 ## Hi, I am Nikan.
 
 I like tackling problems and building things from scratch.
-I have experimented with, include ML, AI for Science,
+I have experimented with ML, AI for Science,
 graphics and hardware.
 
 I am currently working on a chemistry AI that uses a custom 
