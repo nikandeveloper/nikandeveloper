@@ -10,8 +10,8 @@ using its reactants
 
 My Projects on github:
 
-👨‍🔬 SmileyChem       ........ Chemistry AI
+👨‍🔬 SmileyChem............. Chemistry AI
 
-➕ 4D renderer      ........ Renderer for 4D objects
+➕ 4D renderer............ Renderer for 4D objects
 
-🎥 3D room scanner  ........ Room scanned into a 3D model
+🎥 3D room scanner........ Room scanned into a 3D model
