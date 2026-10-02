@@ -9,6 +9,7 @@ improved Seq2Seq model to predict the products of a reaction
 using its reactants
 
 My Projects on github:
-👨‍🔬 SmileyChem       ........ Chemistry AI
-➕ 4D renderer      ........ Renderer for 4D objects
-🎥 3D room scanner  ........ Room scanned into a 3D model 
+
+👨‍🔬 SmileyChem       ........ Chemistry AI.
+➕ 4D renderer      ........ Renderer for 4D objects.
+🎥 3D room scanner  ........ Room scanned into a 3D model. 
